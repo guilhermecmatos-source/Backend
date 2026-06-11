@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 
 import authRoutes from "./routes/auth.routes";
@@ -45,7 +44,37 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger UI via CDN — funciona tanto em dev quanto em serverless (Vercel)
+// swagger-ui-express serve assets estáticos do node_modules que não ficam
+// disponíveis no bundle do Vercel, por isso usamos o CDN da jsDelivr.
+app.get("/api-docs", (_req, res) => {
+  const specUrl = "/api-docs.json";
+  res.setHeader("Content-Type", "text/html");
+  res.send(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fleet Platform API — Docs</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: "${specUrl}",
+      dom_id: "#swagger-ui",
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      layout: "StandaloneLayout",
+      deepLinking: true,
+    });
+  </script>
+</body>
+</html>`);
+});
+
 app.get("/api-docs.json", (_req, res) => {
   res.json(swaggerSpec);
 });
