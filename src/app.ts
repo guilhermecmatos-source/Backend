@@ -29,7 +29,12 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
+// Serve uploads locais apenas em desenvolvimento (no Vercel não há filesystem persistente)
+if (process.env.VERCEL !== "1") {
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+}
+
 
 app.get("/health", async (_req, res) => {
   try {

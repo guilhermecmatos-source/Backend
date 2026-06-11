@@ -2,10 +2,20 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+// No Vercel (serverless) o filesystem é read-only exceto /tmp.
+// Em dev usa ./uploads normalmente.
+const isServerless = process.env.VERCEL === "1" || process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined;
+const UPLOAD_DIR = isServerless
+  ? "/tmp/uploads"
+  : path.join(process.cwd(), "uploads");
 
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+} catch {
+  // Em ambientes serverless sem /tmp disponível, ignora silenciosamente
+  console.warn(`[upload] Não foi possível criar diretório ${UPLOAD_DIR}`);
 }
 
 const storage = multer.diskStorage({
@@ -39,3 +49,4 @@ export const upload = multer({
 export function getUploadPublicPath(filename: string): string {
   return `/uploads/${filename}`;
 }
+
