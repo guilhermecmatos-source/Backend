@@ -53,15 +53,25 @@ async function ensureColumn(
 }
 
 async function migrate() {
-  await waitForDatabase();
   const dbName = getDbName();
   const baseConfig = getBaseConfig();
+  const usingUrl = !!process.env.DATABASE_URL;
 
-  const bootstrap = await mysql.createConnection(baseConfig);
-  await bootstrap.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-  await bootstrap.end();
+  let conn: mysql.Connection;
 
-  const conn = await mysql.createConnection({ ...baseConfig, database: dbName });
+  if (usingUrl) {
+    // Banco cloud: DATABASE_URL já inclui o banco, basta conectar direto.
+    // Não tentamos CREATE DATABASE (sem permissão em bancos gerenciados).
+    console.log(`[migrate] Conectando direto em "${dbName}" via DATABASE_URL...`);
+    conn = await mysql.createConnection({ ...baseConfig, database: dbName });
+  } else {
+    // Dev local: espera o MySQL subir e cria o banco se necessário.
+    await waitForDatabase();
+    const bootstrap = await mysql.createConnection(baseConfig);
+    await bootstrap.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+    await bootstrap.end();
+    conn = await mysql.createConnection({ ...baseConfig, database: dbName });
+  }
 
   try {
     await conn.beginTransaction();
