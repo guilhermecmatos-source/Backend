@@ -13,6 +13,7 @@ export interface User {
   email: string;
   password_hash: string;
   role: UserRole;
+  status?: "pending" | "active" | "inactive" | null;
   cpf?: string | null;
   rg?: string | null;
   cargo?: string | null;

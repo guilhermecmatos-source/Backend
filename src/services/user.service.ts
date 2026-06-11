@@ -23,7 +23,7 @@ export interface UserPublic {
   created_at: Date;
 }
 
-function toPublic(u: User & { status?: string; cpf?: string; rg?: string; cargo?: string; unidade?: string }): UserPublic {
+function toPublic(u: User & { status?: string | null; cpf?: string; rg?: string; cargo?: string; unidade?: string }): UserPublic {
   return {
     id: u.id,
     name: u.name,
@@ -132,7 +132,7 @@ export class UserService {
       "SELECT id, name, email, role, cpf, rg, cargo, unidade, created_at FROM users WHERE email = $1",
       [data.email.trim().toLowerCase()]
     );
-    return toPublic(rows[0] as User & { cpf?: string; rg?: string; cargo?: string; unidade?: string });
+    return toPublic(rows[0] as User & { status?: string | null; cpf?: string; rg?: string; cargo?: string; unidade?: string });
   }
 
   async update(

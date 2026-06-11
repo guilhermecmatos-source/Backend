@@ -15,7 +15,9 @@ function getPoolConfig(): mysql.PoolOptions {
       password: decodeURIComponent(parsed.password),
       database: parsed.pathname.replace(/^\//, ""),
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 5,
+      connectTimeout: 10000,
+      enableKeepAlive: false,
     };
   }
 
@@ -26,7 +28,9 @@ function getPoolConfig(): mysql.PoolOptions {
     password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "fleet_db",
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: 5,
+    connectTimeout: 10000,
+    enableKeepAlive: false,
   };
 }
 
