@@ -301,6 +301,10 @@ async function migrate() {
     await ensureColumn(conn, "ruv_requests", "descricao", "descricao TEXT NULL");
     await ensureColumn(conn, "ruv_requests", "quantidade", "quantidade INT DEFAULT 1");
 
+    await ensureColumn(conn, "contracts", "vehicle_id", "vehicle_id CHAR(36) NULL");
+    await ensureColumn(conn, "contracts", "start_date", "start_date DATE NULL");
+    await ensureColumn(conn, "contracts", "end_date", "end_date DATE NULL");
+
     await conn.query(`
       CREATE TABLE IF NOT EXISTS uploads (
         id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
@@ -371,6 +375,19 @@ async function migrate() {
         message TEXT NOT NULL,
         sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS telemetry_alerts (
+        id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+        category VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        severity VARCHAR(30) NOT NULL,
+        status VARCHAR(30) DEFAULT 'unread',
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

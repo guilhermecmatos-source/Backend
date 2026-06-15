@@ -8,6 +8,7 @@ router.use(authenticate);
 
 router.get("/templates", (req, res) => contractController.templates(req, res));
 router.post("/preview", (req, res) => contractController.preview(req, res));
+router.post("/quote", (req, res) => contractController.quote(req, res));
 router.get("/", (req, res) => contractController.list(req, res));
 router.get("/:id", (req, res) => contractController.get(req, res));
 router.post("/", authorize("administrador", "gestor", "admin"), (req, res) =>

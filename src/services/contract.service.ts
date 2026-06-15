@@ -95,10 +95,13 @@ export class ContractService {
     content: string;
     honorarios?: number;
     created_by?: string;
+    vehicle_id?: string;
+    start_date?: string;
+    end_date?: string;
   }) {
     const rows = await query<Contract>(
-      `INSERT INTO contracts (title, area, template_key, client_name, client_email, client_cpf, content, honorarios, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO contracts (title, area, template_key, client_name, client_email, client_cpf, content, honorarios, created_by, vehicle_id, start_date, end_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [
         data.title,
         data.area,
@@ -109,6 +112,9 @@ export class ContractService {
         data.content,
         data.honorarios ?? 0,
         data.created_by ?? null,
+        data.vehicle_id ?? null,
+        data.start_date ?? null,
+        data.end_date ?? null,
       ]
     );
     return rows[0];

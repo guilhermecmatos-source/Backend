@@ -1,4 +1,10 @@
 import { query } from "../database/connection";
+
+const REGIONS = [
+  { name: "Palmas", keyword: "Palmas" },
+  { name: "Gurupi", keyword: "Gurupi" },
+  { name: "Araguaína", keyword: "Araguaína" },
+];
 import { predictiveService } from "../ai/predictive.service";
 
 export class DashboardService {
@@ -94,6 +100,104 @@ export class DashboardService {
 
   async getDemandForecast() {
     return predictiveService.predictLogisticsDemand();
+  }
+
+  async getAnalytics() {
+    // KPIs por região baseados em viagens
+    const regionStats = await Promise.all(
+      REGIONS.map(async (region) => {
+        const [trips] = await query<{ total: string; completed: string; revenue: string }>(
+          `SELECT
+             CAST(COUNT(*) AS CHAR) as total,
+             CAST(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS CHAR) as completed,
+             CAST(COALESCE(SUM(CASE WHEN status='completed' THEN cost ELSE 0 END),0) AS CHAR) as revenue
+           FROM travels
+           WHERE origin LIKE ? OR destination LIKE ?`,
+          [`%${region.keyword}%`, `%${region.keyword}%`]
+        ).catch(() => [{ total: "0", completed: "0", revenue: "0" }]);
+
+        const [fuelCost] = await query<{ total: string }>(
+          `SELECT CAST(COALESCE(SUM(f.cost),0) AS CHAR) as total
+           FROM fuel_records f
+           JOIN travels t ON t.vehicle_id = f.vehicle_id
+           WHERE t.origin LIKE ? OR t.destination LIKE ?`,
+          [`%${region.keyword}%`, `%${region.keyword}%`]
+        ).catch(() => [{ total: "0" }]);
+
+        const revenue = parseFloat(trips?.revenue ?? "0");
+        const fuel = parseFloat(fuelCost?.total ?? "0");
+        const margin = revenue > 0 ? Math.round(((revenue - fuel) / revenue) * 1000) / 10 : 0;
+
+        return {
+          region: region.name,
+          totalTrips: parseInt(trips?.total ?? "0"),
+          completedTrips: parseInt(trips?.completed ?? "0"),
+          revenue,
+          fuelCost: fuel,
+          profitMargin: margin,
+        };
+      })
+    );
+
+    // Faturamento total (contratos + viagens)
+    const [contractRevenue] = await query<{ total: string }>(
+      `SELECT CAST(COALESCE(SUM(honorarios),0) AS CHAR) as total FROM contracts WHERE status = 'assinado'`
+    ).catch(() => [{ total: "0" }]);
+
+    const [tripRevenue] = await query<{ total: string }>(
+      `SELECT CAST(COALESCE(SUM(cost),0) AS CHAR) as total FROM travels WHERE status = 'completed'`
+    ).catch(() => [{ total: "0" }]);
+
+    const [fuelTotal] = await query<{ total: string }>(
+      `SELECT CAST(COALESCE(SUM(cost),0) AS CHAR) as total FROM fuel_records`
+    ).catch(() => [{ total: "0" }]);
+
+    const totalRevenue = parseFloat(contractRevenue?.total ?? "0") + parseFloat(tripRevenue?.total ?? "0");
+    const totalFuel = parseFloat(fuelTotal?.total ?? "0");
+    const globalMargin = totalRevenue > 0 ? Math.round(((totalRevenue - totalFuel) / totalRevenue) * 1000) / 10 : 0;
+
+    // Funil comercial (status de contratos)
+    const funnelRows = await query<{ status: string; count: string }>(
+      `SELECT status, CAST(COUNT(*) AS CHAR) as count FROM contracts GROUP BY status`
+    ).catch(() => []);
+
+    const funnelMap: Record<string, number> = {};
+    funnelRows.forEach((r) => { funnelMap[r.status] = parseInt(r.count); });
+
+    const funnel = [
+      { stage: "Rascunho",  key: "rascunho",  count: funnelMap["rascunho"] ?? 0 },
+      { stage: "Enviado",   key: "enviado",   count: funnelMap["enviado"] ?? 0 },
+      { stage: "Assinado",  key: "assinado",  count: funnelMap["assinado"] ?? 0 },
+      { stage: "Cancelado", key: "cancelado", count: funnelMap["cancelado"] ?? 0 },
+    ];
+
+    // Evolução mensal de receita (últimos 6 meses)
+    const revenueEvolution = await query<{ month: string; revenue: string; trips: string }>(
+      `SELECT DATE_FORMAT(started_at, '%m/%Y') as month,
+              CAST(COALESCE(SUM(cost),0) AS CHAR) as revenue,
+              CAST(COUNT(*) AS CHAR) as trips
+       FROM travels
+       WHERE started_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) AND status = 'completed'
+       GROUP BY DATE_FORMAT(started_at, '%m/%Y'), YEAR(started_at), MONTH(started_at)
+       ORDER BY YEAR(started_at), MONTH(started_at)`
+    ).catch(() => []);
+
+    return {
+      regions: regionStats,
+      billing: {
+        totalRevenue,
+        contractRevenue: parseFloat(contractRevenue?.total ?? "0"),
+        tripRevenue: parseFloat(tripRevenue?.total ?? "0"),
+        totalFuelCost: totalFuel,
+        globalProfitMargin: globalMargin,
+      },
+      funnel,
+      revenueEvolution: revenueEvolution.map((r) => ({
+        month: r.month,
+        revenue: parseFloat(r.revenue),
+        trips: parseInt(r.trips),
+      })),
+    };
   }
 }
 

@@ -20,6 +20,14 @@ export class DashboardController {
       return sendError(res, 500, "Erro ao carregar dashboard");
     }
   }
+  async analytics(_req: Request, res: Response) {
+    try {
+      return res.json(await dashboardService.getAnalytics());
+    } catch (err) {
+      console.error("[dashboard.analytics]", err);
+      return sendError(res, 500, "Erro ao carregar analytics do dashboard");
+    }
+  }
 }
 
 export const dashboardController = new DashboardController();

@@ -20,6 +20,8 @@ import partnerRoutes from "./routes/partner.routes";
 import reportsRoutes from "./routes/reports.routes";
 import contractRoutes from "./routes/contract.routes";
 import chatRoutes from "./routes/chat.routes";
+import marketplaceRoutes from "./routes/marketplace.routes";
+import telemetryRoutes from "./routes/telemetry.routes";
 import { pingDatabase } from "./database/connection";
 
 dotenv.config();
@@ -95,6 +97,8 @@ app.use("/api/partners", partnerRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/contracts", contractRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/marketplace", marketplaceRoutes);
+app.use("/api/telemetry", telemetryRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });

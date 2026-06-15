@@ -140,6 +140,154 @@ export class IntelligenceService {
       pendingRequests: parseInt(pendingRuv[0]?.c ?? "0"),
     };
   }
+  async getDriverScores() {
+    const drivers = await query<{
+      id: string;
+      name: string;
+      score: string;
+      cnh_category: string;
+      status: string;
+      completed_trips: string;
+      cancelled_trips: string;
+      total_km: string;
+    }>(
+      `SELECT d.id, d.name,
+              CAST(COALESCE(d.score, 0) AS CHAR) as score,
+              COALESCE(d.cnh_category, 'N/A') as cnh_category,
+              COALESCE(d.status, 'ativo') as status,
+              CAST(SUM(CASE WHEN t.status='completed' THEN 1 ELSE 0 END) AS CHAR) as completed_trips,
+              CAST(SUM(CASE WHEN t.status='cancelled' THEN 1 ELSE 0 END) AS CHAR) as cancelled_trips,
+              CAST(COALESCE(SUM(CASE WHEN t.status='completed' THEN t.distance_km ELSE 0 END),0) AS CHAR) as total_km
+       FROM drivers d
+       LEFT JOIN travels t ON t.driver_id = d.id
+       WHERE d.active = 1
+       GROUP BY d.id
+       ORDER BY d.score DESC`
+    );
+
+    return drivers.map((d) => {
+      const completed = parseInt(d.completed_trips);
+      const cancelled = parseInt(d.cancelled_trips);
+      const total = completed + cancelled;
+      const completionRate = total > 0 ? Math.round((completed / total) * 100) : 100;
+      const baseScore = parseFloat(d.score);
+      // Score composto: 70% score BD + 30% taxa de conclusão
+      const compositeScore = Math.round((baseScore * 0.7 + completionRate * 0.3) * 10) / 10;
+
+      let badge: string;
+      if (compositeScore >= 85) badge = "Excelente";
+      else if (compositeScore >= 70) badge = "Bom";
+      else if (compositeScore >= 50) badge = "Regular";
+      else badge = "Crítico";
+
+      return {
+        id: d.id,
+        name: d.name,
+        score: compositeScore,
+        badge,
+        cnhCategory: d.cnh_category,
+        status: d.status,
+        completedTrips: completed,
+        cancelledTrips: cancelled,
+        totalKm: parseFloat(d.total_km),
+        completionRate,
+      };
+    });
+  }
+
+  async getPredictiveParts() {
+    const vehicles = await query<{
+      id: string;
+      plate: string;
+      brand: string;
+      model: string;
+      mileage: string;
+      last_maintenance: string | null;
+      oil_filter_km: string | null;
+      brake_km: string | null;
+    }>(
+      `SELECT v.id, v.plate, v.brand, v.model,
+              CAST(v.mileage AS CHAR) as mileage,
+              MAX(m.scheduled_at) as last_maintenance,
+              NULL as oil_filter_km,
+              NULL as brake_km
+       FROM vehicles v
+       LEFT JOIN maintenances m ON m.vehicle_id = v.id
+       WHERE v.status != 'inactive'
+       GROUP BY v.id
+       ORDER BY v.mileage DESC`
+    );
+
+    return vehicles.map((v) => {
+      const mileage = parseFloat(v.mileage);
+      // Intervalos padrão de peças (km)
+      const OIL_FILTER_INTERVAL = 10000;
+      const BRAKE_FLUID_INTERVAL = 40000;
+      const WIRING_INTERVAL = 80000;
+
+      const oilFilterKmLeft = OIL_FILTER_INTERVAL - (mileage % OIL_FILTER_INTERVAL);
+      const brakeFluidKmLeft = BRAKE_FLUID_INTERVAL - (mileage % BRAKE_FLUID_INTERVAL);
+      const wiringKmLeft = WIRING_INTERVAL - (mileage % WIRING_INTERVAL);
+
+      const getSeverity = (kmLeft: number, interval: number) => {
+        const pct = kmLeft / interval;
+        if (pct < 0.1) return "critical";
+        if (pct < 0.25) return "warning";
+        return "ok";
+      };
+
+      return {
+        vehicleId: v.id,
+        plate: v.plate,
+        brand: v.brand,
+        model: v.model,
+        mileage,
+        lastMaintenance: v.last_maintenance,
+        parts: [
+          {
+            name: "Filtro de Óleo/Ar",
+            kmUntilChange: Math.round(oilFilterKmLeft),
+            severity: getSeverity(oilFilterKmLeft, OIL_FILTER_INTERVAL),
+            intervalKm: OIL_FILTER_INTERVAL,
+          },
+          {
+            name: "Fluido de Freio",
+            kmUntilChange: Math.round(brakeFluidKmLeft),
+            severity: getSeverity(brakeFluidKmLeft, BRAKE_FLUID_INTERVAL),
+            intervalKm: BRAKE_FLUID_INTERVAL,
+          },
+          {
+            name: "Fiação Elétrica",
+            kmUntilChange: Math.round(wiringKmLeft),
+            severity: getSeverity(wiringKmLeft, WIRING_INTERVAL),
+            intervalKm: WIRING_INTERVAL,
+          },
+        ],
+      };
+    });
+  }
+
+  async getConsumptionByModel() {
+    return query<{ brand: string; model: string; avg_km_per_l: string; total_km: string; vehicle_count: string }>(
+      `SELECT v.brand, v.model,
+              CAST(COALESCE(AVG(v.avg_consumption), 0) AS CHAR) as avg_km_per_l,
+              CAST(COALESCE(SUM(t.distance_km), 0) AS CHAR) as total_km,
+              CAST(COUNT(DISTINCT v.id) AS CHAR) as vehicle_count
+       FROM vehicles v
+       LEFT JOIN fuel_records f ON f.vehicle_id = v.id
+       LEFT JOIN travels t ON t.vehicle_id = v.id AND t.status = 'completed'
+       GROUP BY v.brand, v.model
+       ORDER BY avg_km_per_l DESC`
+    ).then((rows) =>
+      rows.map((r) => ({
+        brand: r.brand,
+        model: r.model,
+        avgKmPerL: Math.round(parseFloat(r.avg_km_per_l) * 100) / 100,
+        totalKm: parseFloat(r.total_km),
+        vehicleCount: parseInt(r.vehicle_count),
+      }))
+    );
+  }
 }
 
 export const intelligenceService = new IntelligenceService();

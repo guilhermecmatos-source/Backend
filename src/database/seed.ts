@@ -198,6 +198,19 @@ export async function runSeed(conn: mysql.Connection): Promise<void> {
       console.log("[seed] Solicitações RUV de exemplo criadas.");
     }
   }
+
+  const [alertCount] = await conn.query<mysql.RowDataPacket[]>(
+    "SELECT COUNT(*) as c FROM telemetry_alerts"
+  );
+  if (Number(alertCount[0]?.c) === 0) {
+    await conn.query(`
+      INSERT INTO telemetry_alerts (category, title, message, severity, status) VALUES
+      ('sistema', 'Alerta de Freio Térmico', 'Temperatura do freio do veículo DEF-5678 atingiu 295°C no eixo traseiro direito.', 'error', 'unread'),
+      ('motoristas', 'DriverEye Fadiga', 'Condutor Carlos Eduardo com score de fadiga elevado em 82%. Sugerido ponto de parada imediata.', 'warning', 'unread'),
+      ('antt', 'ANTT Rotas', 'Veículo GHI-9012 cruzou divisa interestadual em rota homologada ANTT.', 'info', 'read')
+    `);
+    console.log("[seed] Alertas de telemetria de exemplo criados.");
+  }
 }
 
 async function seedCli() {

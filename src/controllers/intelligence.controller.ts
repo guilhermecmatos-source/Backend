@@ -38,6 +38,32 @@ export class IntelligenceController {
       return sendError(res, 500, "Erro ao obter viagens recentes");
     }
   }
+  async driverScores(_req: Request, res: Response) {
+    try {
+      return res.json(await intelligenceService.getDriverScores());
+    } catch (err) {
+      console.error("[intelligence.driverScores]", err);
+      return sendError(res, 500, "Erro ao carregar scores de motoristas");
+    }
+  }
+
+  async predictiveParts(_req: Request, res: Response) {
+    try {
+      return res.json(await intelligenceService.getPredictiveParts());
+    } catch (err) {
+      console.error("[intelligence.predictiveParts]", err);
+      return sendError(res, 500, "Erro ao gerar laudo preditivo de peças");
+    }
+  }
+
+  async consumptionByModel(_req: Request, res: Response) {
+    try {
+      return res.json(await intelligenceService.getConsumptionByModel());
+    } catch (err) {
+      console.error("[intelligence.consumptionByModel]", err);
+      return sendError(res, 500, "Erro ao carregar consumo por modelo");
+    }
+  }
 }
 
 export const intelligenceController = new IntelligenceController();
