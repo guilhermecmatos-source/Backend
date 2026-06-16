@@ -1,6 +1,16 @@
 import { Request, Response } from "express";
 import { query } from "../database/connection";
 import { sendError } from "../utils/errors";
+import { z } from "zod";
+
+const createAlertSchema = z.object({
+  category: z.string({ message: "A categoria é obrigatória" }).min(1, "A categoria não pode ser vazia"),
+  title: z.string({ message: "O título é obrigatório" }).min(3, "O título deve ter pelo menos 3 caracteres"),
+  message: z.string({ message: "A mensagem é obrigatória" }).min(5, "A mensagem deve ter pelo menos 5 caracteres"),
+  severity: z.enum(["critical", "high", "medium", "info", "error", "warning"] as const, {
+    message: "A severidade deve ser: critical, high, medium, info, error ou warning",
+  }),
+});
 
 /** Retorna alertas de telemetria baseados em falhas mecânicas e heurísticas de fadiga */
 export class TelemetryController {
@@ -147,16 +157,54 @@ export class TelemetryController {
 
   async createAlert(req: Request, res: Response) {
     try {
-      const { category, title, message, severity } = req.body;
-      if (!category || !title || !message || !severity) {
-        return sendError(res, 400, "category, title, message e severity são obrigatórios");
+      const parseResult = createAlertSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errorMsg = parseResult.error.issues.map((e: { message: string }) => e.message).join(", ");
+        return sendError(res, 400, errorMsg);
       }
-      const rows = await query(
+
+      const { category, title, message, severity } = parseResult.data;
+
+      const rows = await query<{
+        id: string;
+        category: string;
+        title: string;
+        message: string;
+        severity: string;
+        timestamp: string | null;
+        created_at: string;
+      }>(
         `INSERT INTO telemetry_alerts (category, title, message, severity)
          VALUES ($1, $2, $3, $4) RETURNING *`,
         [category, title, message, severity]
       );
-      return res.status(201).json(rows[0]);
+
+      const alert = rows[0];
+
+      if (alert) {
+        const { emitTelemetryAlert } = require("../utils/socket");
+        emitTelemetryAlert({
+          id: alert.id,
+          category: alert.category,
+          title: alert.title,
+          message: alert.message,
+          severity: alert.severity,
+          timestamp: alert.timestamp || new Date().toISOString()
+        });
+
+        // Registrar auditoria
+        const ipAddress = req.ip || req.socket.remoteAddress || "0.0.0.0";
+        const { auditService } = require("../services/audit.service");
+        await auditService.logAuditoria({
+          userId: req.user?.userId,
+          userEmail: req.user?.email,
+          action: "SIMULATE_TELEMETRY",
+          details: `Simulação de telemetria disparada. Categoria: ${category}, Título: ${title}, Severidade: ${severity}.`,
+          ipAddress,
+        });
+      }
+
+      return res.status(201).json(alert);
     } catch (err) {
       console.error("[telemetry.createAlert]", err);
       return sendError(res, 500, "Erro ao criar alerta de telemetria");

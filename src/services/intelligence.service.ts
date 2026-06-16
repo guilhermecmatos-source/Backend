@@ -203,14 +203,10 @@ export class IntelligenceService {
       model: string;
       mileage: string;
       last_maintenance: string | null;
-      oil_filter_km: string | null;
-      brake_km: string | null;
     }>(
       `SELECT v.id, v.plate, v.brand, v.model,
               CAST(v.mileage AS CHAR) as mileage,
-              MAX(m.scheduled_at) as last_maintenance,
-              NULL as oil_filter_km,
-              NULL as brake_km
+              MAX(m.scheduled_at) as last_maintenance
        FROM vehicles v
        LEFT JOIN maintenances m ON m.vehicle_id = v.id
        WHERE v.status != 'inactive'
@@ -218,53 +214,101 @@ export class IntelligenceService {
        ORDER BY v.mileage DESC`
     );
 
-    return vehicles.map((v) => {
+    const result = [];
+
+    for (const v of vehicles) {
       const mileage = parseFloat(v.mileage);
+      const vehicleId = v.id;
+      const plate = v.plate;
+
+      // Buscar contagens de manutenções corretivas e preventivas
+      const maintCounts = await query<{ type: string; count: number }>(
+        `SELECT type, CAST(COUNT(*) AS UNSIGNED) as count 
+         FROM maintenances 
+         WHERE vehicle_id = $1
+         GROUP BY type`,
+        [vehicleId]
+      );
+      
+      let correctiveCount = 0;
+      let preventiveCount = 0;
+      maintCounts.forEach(m => {
+        if (m.type === "corrective") correctiveCount = Number(m.count);
+        if (m.type === "preventive") preventiveCount = Number(m.count);
+      });
+
+      // Buscar alertas térmicos/críticos associados à placa do veículo
+      const thermalAlertsCountResult = await query<{ count: number }>(
+        `SELECT CAST(COUNT(*) AS UNSIGNED) as count 
+         FROM telemetry_alerts 
+         WHERE (message LIKE CONCAT('%', $1, '%') OR title LIKE CONCAT('%', $1, '%'))
+           AND (LOWER(message) LIKE '%termico%' OR LOWER(message) LIKE '%térmico%' OR LOWER(message) LIKE '%temperatura%' OR LOWER(message) LIKE '%aquecimento%' OR LOWER(title) LIKE '%termico%' OR LOWER(title) LIKE '%térmico%')`,
+        [plate]
+      );
+      const thermalAlerts = Number(thermalAlertsCountResult[0]?.count ?? 0);
+
+      // Lógica de análise preditiva (regressão logística multivariável)
+      // z = intercepto + b1 * km + b2 * alertas_termicos + b3 * corretivas - b4 * preventivas
+      const b0 = -1.5; // Risco base inicial
+      const b1 = 0.000008; // Fator de desgaste por KM rodado
+      const b2 = 1.5; // Alertas térmicos são sinais críticos de sobreaquecimento / falha
+      const b3 = 0.5; // Manutenções corretivas indicam falhas reincidentes
+      const b4 = 0.6; // Manutenções preventivas reduzem a chance de falha mecânica
+
+      const z = b0 + (b1 * mileage) + (b2 * thermalAlerts) + (b3 * correctiveCount) - (b4 * preventiveCount);
+      const probability = Math.round((1 / (1 + Math.exp(-z))) * 100);
+
       // Intervalos padrão de peças (km)
       const OIL_FILTER_INTERVAL = 10000;
       const BRAKE_FLUID_INTERVAL = 40000;
       const WIRING_INTERVAL = 80000;
 
-      const oilFilterKmLeft = OIL_FILTER_INTERVAL - (mileage % OIL_FILTER_INTERVAL);
-      const brakeFluidKmLeft = BRAKE_FLUID_INTERVAL - (mileage % BRAKE_FLUID_INTERVAL);
-      const wiringKmLeft = WIRING_INTERVAL - (mileage % WIRING_INTERVAL);
+      // Desgaste atenuado por manutenções preventivas e acelerado por corretivas
+      const factor = Math.max(0.6, Math.min(1.4, 1 + (correctiveCount * 0.1) - (preventiveCount * 0.15)));
+
+      const oilFilterKmLeft = Math.max(100, Math.round((OIL_FILTER_INTERVAL - (mileage % OIL_FILTER_INTERVAL)) * factor));
+      const brakeFluidKmLeft = Math.max(200, Math.round((BRAKE_FLUID_INTERVAL - (mileage % BRAKE_FLUID_INTERVAL)) * factor));
+      const wiringKmLeft = Math.max(500, Math.round((WIRING_INTERVAL - (mileage % WIRING_INTERVAL)) * factor));
 
       const getSeverity = (kmLeft: number, interval: number) => {
         const pct = kmLeft / interval;
-        if (pct < 0.1) return "critical";
-        if (pct < 0.25) return "warning";
+        if (pct < 0.15) return "critical";
+        if (pct < 0.35) return "warning";
         return "ok";
       };
 
-      return {
-        vehicleId: v.id,
-        plate: v.plate,
+      result.push({
+        vehicleId,
+        plate,
         brand: v.brand,
         model: v.model,
         mileage,
         lastMaintenance: v.last_maintenance,
+        failureProbability: Math.min(99, Math.max(1, probability)),
         parts: [
           {
-            name: "Filtro de Óleo/Ar",
-            kmUntilChange: Math.round(oilFilterKmLeft),
+            name: "Filtros de Óleo/Ar",
+            kmUntilChange: oilFilterKmLeft,
             severity: getSeverity(oilFilterKmLeft, OIL_FILTER_INTERVAL),
             intervalKm: OIL_FILTER_INTERVAL,
           },
           {
             name: "Fluido de Freio",
-            kmUntilChange: Math.round(brakeFluidKmLeft),
+            kmUntilChange: brakeFluidKmLeft,
             severity: getSeverity(brakeFluidKmLeft, BRAKE_FLUID_INTERVAL),
             intervalKm: BRAKE_FLUID_INTERVAL,
           },
           {
             name: "Fiação Elétrica",
-            kmUntilChange: Math.round(wiringKmLeft),
+            kmUntilChange: wiringKmLeft,
             severity: getSeverity(wiringKmLeft, WIRING_INTERVAL),
             intervalKm: WIRING_INTERVAL,
           },
         ],
-      };
-    });
+      });
+    }
+
+    return result;
   }
 
   async getConsumptionByModel() {

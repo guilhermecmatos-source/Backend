@@ -2,6 +2,21 @@ import { Request, Response } from "express";
 import { contractService } from "../services/contract.service";
 import { query } from "../database/connection";
 import { sendError } from "../utils/errors";
+import { z } from "zod";
+
+const createContractSchema = z.object({
+  title: z.string({ message: "O título é obrigatório" }).min(3, "O título deve ter pelo menos 3 caracteres"),
+  area: z.string({ message: "A área é obrigatória" }).min(2, "A área é obrigatória"),
+  template_key: z.string({ message: "A chave do template é obrigatória" }).min(1, "A chave do template é obrigatória"),
+  client_name: z.string({ message: "O nome do cliente é obrigatório" }).min(3, "O nome do cliente deve ter pelo menos 3 caracteres"),
+  content: z.string({ message: "O conteúdo é obrigatório" }).min(10, "O conteúdo deve ter pelo menos 10 caracteres"),
+  client_email: z.string().email("E-mail do cliente inválido").optional().nullable(),
+  client_cpf: z.string().min(11, "CPF do cliente inválido").max(14).optional().nullable(),
+  honorarios: z.number().nonnegative().optional().nullable(),
+  vehicle_id: z.string().uuid("ID de veículo inválido").optional().nullable(),
+  start_date: z.string().optional().nullable(),
+  end_date: z.string().optional().nullable(),
+});
 
 export class ContractController {
   async list(_req: Request, res: Response) {
@@ -49,14 +64,30 @@ export class ContractController {
 
   async create(req: Request, res: Response) {
     try {
-      const { title, area, template_key, client_name, content } = req.body;
-      if (!title || !area || !template_key || !client_name || !content) {
-        return sendError(res, 400, "Campos obrigatórios ausentes");
+      const parseResult = createContractSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errorMsg = parseResult.error.issues.map((e: { message: string }) => e.message).join(", ");
+        return sendError(res, 400, errorMsg);
       }
+
       const contract = await contractService.create({
-        ...req.body,
+        ...parseResult.data,
         created_by: req.user?.userId,
       });
+
+      if (contract) {
+        // Registrar auditoria
+        const ipAddress = req.ip || req.socket.remoteAddress || "0.0.0.0";
+        const { auditService } = require("../services/audit.service");
+        await auditService.logAuditoria({
+          userId: req.user?.userId,
+          userEmail: req.user?.email,
+          action: "CREATE_CONTRACT",
+          details: `Contrato '${parseResult.data.title}' criado para o cliente '${parseResult.data.client_name}' com honorários R$ ${parseResult.data.honorarios || 0}.`,
+          ipAddress,
+        });
+      }
+
       return res.status(201).json(contract);
     } catch (e) {
       return sendError(res, 400, e instanceof Error ? e.message : "Erro ao criar contrato");

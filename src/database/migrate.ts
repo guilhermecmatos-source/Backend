@@ -290,6 +290,18 @@ async function migrate() {
       )
     `);
 
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS logs_auditoria (
+        id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+        user_id CHAR(36) NULL,
+        user_email VARCHAR(255) NULL,
+        action VARCHAR(100) NOT NULL,
+        details TEXT NULL,
+        ip_address VARCHAR(45) NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     await ensureColumn(conn, "drivers", "profile_image_url", "profile_image_url VARCHAR(512) NULL");
     await ensureColumn(conn, "drivers", "cnh_image_url", "cnh_image_url VARCHAR(512) NULL");
     await ensureColumn(conn, "drivers", "cnh_pdf_url", "cnh_pdf_url VARCHAR(512) NULL");
@@ -300,10 +312,6 @@ async function migrate() {
     await ensureColumn(conn, "partners", "notes", "notes TEXT NULL");
     await ensureColumn(conn, "ruv_requests", "descricao", "descricao TEXT NULL");
     await ensureColumn(conn, "ruv_requests", "quantidade", "quantidade INT DEFAULT 1");
-
-    await ensureColumn(conn, "contracts", "vehicle_id", "vehicle_id CHAR(36) NULL");
-    await ensureColumn(conn, "contracts", "start_date", "start_date DATE NULL");
-    await ensureColumn(conn, "contracts", "end_date", "end_date DATE NULL");
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS uploads (
@@ -366,6 +374,10 @@ async function migrate() {
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
+
+    await ensureColumn(conn, "contracts", "vehicle_id", "vehicle_id CHAR(36) NULL");
+    await ensureColumn(conn, "contracts", "start_date", "start_date DATE NULL");
+    await ensureColumn(conn, "contracts", "end_date", "end_date DATE NULL");
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS contract_notifications (

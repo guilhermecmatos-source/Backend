@@ -1,7 +1,9 @@
 import dotenv from "dotenv";
+import http from "http";
 import app from "./app";
 import { pingDatabase } from "./database/connection";
 import { waitForDatabase } from "./database/wait-db";
+import { initSocket } from "./utils/socket";
 
 dotenv.config();
 
@@ -24,9 +26,13 @@ async function startServer() {
     }
   }
 
-  app.listen(Number(PORT), "0.0.0.0", () => {
+  const server = http.createServer(app);
+  initSocket(server);
+
+  server.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`[api] Fleet Platform API em http://0.0.0.0:${PORT}`);
     console.log("[api] MySQL conectado.");
+    console.log("[api] WebSocket (Socket.io) inicializado.");
   });
 }
 

@@ -65,7 +65,8 @@ export async function runSeed(conn: mysql.Connection): Promise<void> {
       ('ABC1D23', 'Toyota', 'Hilux', 2023, 'active', 42150, 9.5, 650),
       ('DEF2E45', 'Volkswagen', 'Delivery', 2022, 'active', 88420, 11.2, 520),
       ('GHI3F67', 'Fiat', 'Strada', 2024, 'maintenance', 12800, 10.8, 480),
-      ('JKL4G89', 'Mercedes-Benz', 'Sprinter', 2021, 'active', 201000, 12.5, 600)
+      ('JKL4G89', 'Mercedes-Benz', 'Sprinter', 2021, 'active', 201000, 12.5, 600),
+      ('MEC4D21', 'Mercedes-Benz', 'Atego 2426', 2022, 'active', 145800, 4.2, 850)
     `);
     console.log("[seed] Veículos de exemplo criados.");
   }
@@ -179,6 +180,21 @@ export async function runSeed(conn: mysql.Connection): Promise<void> {
       );
       console.log(`[seed] Manutenções de exemplo (alerta óleo em ~500 km a partir de ${km} km).`);
     }
+
+    // Inserir manutenções e histórico para o Atego 2426 (MEC4D21)
+    const [vAtego] = await conn.query<mysql.RowDataPacket[]>(
+      "SELECT id FROM vehicles WHERE plate = 'MEC4D21' LIMIT 1"
+    );
+    if (vAtego.length) {
+      await conn.query(
+        `INSERT INTO maintenances (vehicle_id, type, description, cost, scheduled_at, completed_at, alert_sent) VALUES
+         (?, 'preventive', 'Troca de óleo do motor e filtros de ar', 1200.00, DATE_SUB(NOW(), INTERVAL 30 DAY), DATE_SUB(NOW(), INTERVAL 30 DAY), 0),
+         (?, 'corrective', 'Reparo no sistema de injeção eletrônica', 3400.00, DATE_SUB(NOW(), INTERVAL 15 DAY), DATE_SUB(NOW(), INTERVAL 15 DAY), 0),
+         (?, 'corrective', 'Superaquecimento de motor e troca de mangueiras', 2100.00, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 5 DAY), 0)`,
+        [vAtego[0].id, vAtego[0].id, vAtego[0].id]
+      );
+      console.log("[seed] Manutenções adicionais para Mercedes-Benz Atego criadas.");
+    }
   }
 
   const [ruvCount] = await conn.query<mysql.RowDataPacket[]>(
@@ -210,6 +226,18 @@ export async function runSeed(conn: mysql.Connection): Promise<void> {
       ('antt', 'ANTT Rotas', 'Veículo GHI-9012 cruzou divisa interestadual em rota homologada ANTT.', 'info', 'read')
     `);
     console.log("[seed] Alertas de telemetria de exemplo criados.");
+  }
+
+  // Inserir alerta térmico relacionado ao Atego 2426 (MEC4D21) para a análise preditiva
+  const [ategoAlertExist] = await conn.query<mysql.RowDataPacket[]>(
+    "SELECT COUNT(*) as c FROM telemetry_alerts WHERE message LIKE '%MEC4D21%'"
+  );
+  if (Number(ategoAlertExist[0]?.c) === 0) {
+    await conn.query(`
+      INSERT INTO telemetry_alerts (category, title, message, severity, status) VALUES
+      ('sistema', 'Alerta Térmico de Freio', 'Temperatura do freio do veículo MEC4D21 atingiu 310°C no eixo dianteiro esquerdo.', 'error', 'unread')
+    `);
+    console.log("[seed] Alerta térmico do Mercedes-Benz Atego criado.");
   }
 }
 

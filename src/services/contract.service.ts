@@ -90,14 +90,14 @@ export class ContractService {
     area: string;
     template_key: string;
     client_name: string;
-    client_email?: string;
-    client_cpf?: string;
+    client_email?: string | null;
+    client_cpf?: string | null;
     content: string;
-    honorarios?: number;
-    created_by?: string;
-    vehicle_id?: string;
-    start_date?: string;
-    end_date?: string;
+    honorarios?: number | null;
+    created_by?: string | null;
+    vehicle_id?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
   }) {
     const rows = await query<Contract>(
       `INSERT INTO contracts (title, area, template_key, client_name, client_email, client_cpf, content, honorarios, created_by, vehicle_id, start_date, end_date)
