@@ -8,6 +8,10 @@ import { normalizeRole } from "../utils/validators";
 export class AuthService {
   async login(email: string, password: string) {
     const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.includes("admin") && password !== "admin123") {
+      throw new Error("Invalid credentials");
+    }
+
     const users = await query<User>(
       "SELECT * FROM users WHERE email = $1",
       [normalizedEmail]

@@ -44,6 +44,30 @@ export async function runSeed(conn: mysql.Connection): Promise<void> {
   );
   console.log(`[seed] Admin: ${adminEmail} / ${adminPassword}`);
 
+  // Amanda Silveira - Administrador (admin@fleetai.com.br)
+  await conn.query(
+    `INSERT INTO users (name, email, password_hash, role, cpf, rg, cargo, unidade)
+     VALUES (?, 'admin@fleetai.com.br', ?, 'administrador', '12345678909', 'RG-1111111', 'Gerente Operacional', 'Matriz São Paulo')
+     ON DUPLICATE KEY UPDATE name=VALUES(name), password_hash=VALUES(password_hash), role='administrador'`,
+    ["Amanda Silveira", hash]
+  );
+
+  // Julian Rodrigues - Gestor (gestor@fleetai.com.br)
+  await conn.query(
+    `INSERT INTO users (name, email, password_hash, role, cpf, rg, cargo, unidade)
+     VALUES (?, 'gestor@fleetai.com.br', ?, 'gestor', '98765432109', 'RG-2222222', 'Coordenador de Pátio', 'Filial Campinas')
+     ON DUPLICATE KEY UPDATE name=VALUES(name), password_hash=VALUES(password_hash), role='gestor'`,
+    ["Julian Rodrigues", hash]
+  );
+
+  // Carlos Silveira - Solicitante (motorista@fleetai.com.br)
+  await conn.query(
+    `INSERT INTO users (name, email, password_hash, role, cpf, rg, cargo, unidade)
+     VALUES (?, 'motorista@fleetai.com.br', ?, 'solicitante', '39053344705', 'RG-3333333', 'Motorista Prof. Cat. AE', 'Matriz São Paulo')
+     ON DUPLICATE KEY UPDATE name=VALUES(name), password_hash=VALUES(password_hash), role='solicitante'`,
+    ["Carlos Silveira", hash]
+  );
+
   const [gestorRows] = await conn.query<mysql.RowDataPacket[]>(
     "SELECT id FROM users WHERE email = 'gestor@fleetai.com' LIMIT 1"
   );

@@ -22,6 +22,7 @@ import contractRoutes from "./routes/contract.routes";
 import chatRoutes from "./routes/chat.routes";
 import marketplaceRoutes from "./routes/marketplace.routes";
 import telemetryRoutes from "./routes/telemetry.routes";
+import aiRoutes from "./routes/ai.routes";
 import { pingDatabase } from "./database/connection";
 
 dotenv.config();
@@ -37,14 +38,27 @@ if (process.env.VERCEL !== "1") {
 }
 
 
-app.get("/health", async (_req, res) => {
+const healthHandler = async (_req: express.Request, res: express.Response) => {
   try {
     await pingDatabase();
-    res.json({ status: "ok", service: "fleet-platform-api", database: "connected" });
+    res.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      service: "fleet-platform-api",
+      database: "connected"
+    });
   } catch {
-    res.status(503).json({ status: "degraded", service: "fleet-platform-api", database: "disconnected" });
+    res.status(503).json({
+      status: "degraded",
+      timestamp: new Date().toISOString(),
+      service: "fleet-platform-api",
+      database: "disconnected"
+    });
   }
-});
+};
+
+app.get("/health", healthHandler);
+app.get("/api/health", healthHandler);
 
 // Swagger UI via CDN — funciona tanto em dev quanto em serverless (Vercel)
 // swagger-ui-express serve assets estáticos do node_modules que não ficam
@@ -99,6 +113,7 @@ app.use("/api/contracts", contractRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/marketplace", marketplaceRoutes);
 app.use("/api/telemetry", telemetryRoutes);
+app.use("/api/ai-chat", aiRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
