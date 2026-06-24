@@ -114,3 +114,14 @@ export interface PredictiveAlert {
   message: string;
   recommendation: string;
 }
+
+export interface Movimentacao {
+  id: string;
+  requisicao_id: string;
+  km_inicial: number;
+  km_final?: number | null;
+  data_saida: Date;
+  data_retorno?: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
