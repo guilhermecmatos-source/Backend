@@ -417,6 +417,20 @@ async function migrate() {
       )
     `);
 
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS movimentacoes (
+        id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+        requisicao_id CHAR(36) NOT NULL,
+        km_inicial DECIMAL(12,2) NOT NULL,
+        km_final DECIMAL(12,2) NULL,
+        data_saida DATETIME DEFAULT CURRENT_TIMESTAMP,
+        data_retorno DATETIME NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (requisicao_id) REFERENCES ruv_requests(id) ON DELETE CASCADE
+      )
+    `);
+
     await conn.commit();
     console.log(`[migrate] Schema OK em "${dbName}".`);
 
