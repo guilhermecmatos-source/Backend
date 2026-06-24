@@ -114,3 +114,27 @@ export interface PredictiveAlert {
   message: string;
   recommendation: string;
 }
+
+export type RuvStatus =
+  | "pendente"
+  | "aprovado"
+  | "rejeitado"
+  | "em_andamento"
+  | "concluido"
+  | "Em Trânsito"
+  | "Concluída";
+
+export interface Movimentacao {
+  id: string;
+  requisicao_id: string;
+  km_inicial: number;
+  km_final?: number | null;
+  data_saida: Date;
+  data_retorno?: Date | null;
+  created_at: Date;
+  updated_at: Date;
+  // campos opcionais vindos do JOIN com ruv_requests
+  ruv_origin?: string;
+  ruv_destination?: string;
+  ruv_status?: string;
+}
