@@ -24,7 +24,7 @@ export class VehicleController {
   }
 
   async create(req: Request, res: Response) {
-    const { plate, brand, model, year, status, mileage, avg_consumption, autonomy_km } = req.body;
+    const { plate, brand, model, year, status, mileage, avg_consumption, autonomy_km, engine, purpose, photo_url } = req.body;
     if (!plate || !brand || !model || !year) {
       return sendError(res, 400, "Placa, marca, modelo e ano são obrigatórios");
     }
@@ -38,6 +38,9 @@ export class VehicleController {
         mileage,
         avg_consumption,
         autonomy_km,
+        engine,
+        purpose,
+        photo_url,
       });
       await auditService.log({
         entityType: "vehicle",

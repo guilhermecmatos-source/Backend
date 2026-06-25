@@ -320,6 +320,8 @@ async function migrate() {
     await ensureColumn(conn, "drivers", "cnh_image_url", "cnh_image_url VARCHAR(512) NULL");
     await ensureColumn(conn, "drivers", "cnh_pdf_url", "cnh_pdf_url VARCHAR(512) NULL");
     await ensureColumn(conn, "vehicles", "photo_url", "photo_url VARCHAR(512) NULL");
+    await ensureColumn(conn, "vehicles", "engine", "engine VARCHAR(100) DEFAULT 'Óleo Diesel S10'");
+    await ensureColumn(conn, "vehicles", "purpose", "purpose VARCHAR(50) DEFAULT 'locacao'");
     await ensureColumn(conn, "fuel_records", "receipt_url", "receipt_url VARCHAR(512) NULL");
     await ensureColumn(conn, "partners", "logo_url", "logo_url VARCHAR(512) NULL");
     await ensureColumn(conn, "partners", "address", "address VARCHAR(255) NULL");

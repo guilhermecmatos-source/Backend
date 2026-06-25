@@ -33,6 +33,9 @@ export interface Vehicle {
   mileage: number;
   avg_consumption?: number | null;
   autonomy_km?: number | null;
+  engine?: string | null;
+  purpose?: "locacao" | "venda" | null;
+  photo_url?: string | null;
   created_at: Date;
   updated_at: Date;
 }

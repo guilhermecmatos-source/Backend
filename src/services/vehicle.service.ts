@@ -54,6 +54,9 @@ export class VehicleService {
     mileage?: number;
     avg_consumption?: number;
     autonomy_km?: number;
+    engine?: string;
+    purpose?: "locacao" | "venda";
+    photo_url?: string;
   }) {
     const plateCheck = validatePlate(data.plate);
     if (!plateCheck.valid) throw new Error(plateCheck.message);
@@ -62,8 +65,8 @@ export class VehicleService {
     if (dup) throw new Error("Placa já cadastrada.");
 
     const rows = await query<Vehicle>(
-      `INSERT INTO vehicles (plate, brand, model, year, status, mileage, avg_consumption, autonomy_km)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO vehicles (plate, brand, model, year, status, mileage, avg_consumption, autonomy_km, engine, purpose, photo_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [
         normalized,
         data.brand,
@@ -73,6 +76,9 @@ export class VehicleService {
         data.mileage || 0,
         data.avg_consumption ?? null,
         data.autonomy_km ?? null,
+        data.engine ?? "Óleo Diesel S10",
+        data.purpose ?? "locacao",
+        data.photo_url ?? null,
       ]
     );
     return rows[0];
@@ -97,6 +103,9 @@ export class VehicleService {
         mileage = COALESCE($7, mileage),
         avg_consumption = COALESCE($8, avg_consumption),
         autonomy_km = COALESCE($9, autonomy_km),
+        engine = COALESCE($10, engine),
+        purpose = COALESCE($11, purpose),
+        photo_url = COALESCE($12, photo_url),
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
       [
@@ -109,6 +118,9 @@ export class VehicleService {
         data.mileage,
         data.avg_consumption,
         data.autonomy_km,
+        data.engine,
+        data.purpose,
+        data.photo_url,
       ]
     );
     return rows[0] || null;

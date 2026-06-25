@@ -52,7 +52,7 @@ export class DashboardService {
   }
 
   async getKpis() {
-    const [vehicles, drivers, travels, fuel, maintenance] = await Promise.all([
+    const [vehicles, drivers, travels, fuel, maintenance, ruvs] = await Promise.all([
       query<{ total: string; active: string }>(
         `SELECT CAST(COUNT(*) AS CHAR) as total,
          CAST(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS CHAR) as active FROM vehicles`
@@ -70,6 +70,10 @@ export class DashboardService {
         `SELECT CAST(COUNT(*) AS CHAR) as pending FROM maintenances
          WHERE completed_at IS NULL AND scheduled_at <= DATE_ADD(NOW(), INTERVAL 30 DAY)`
       ).catch(() => [{ pending: "0" }]),
+      query<{ total: string; approved: string }>(
+        `SELECT CAST(COUNT(*) AS CHAR) as total,
+         CAST(SUM(CASE WHEN status = 'aprovado' THEN 1 ELSE 0 END) AS CHAR) as approved FROM ruv_requests`
+      ).catch(() => [{ total: "0", approved: "0" }]),
     ]);
 
     return {
@@ -84,6 +88,10 @@ export class DashboardService {
       },
       fuelCost: parseFloat(fuel[0]?.total_cost ?? "0"),
       pendingMaintenance: parseInt(maintenance[0]?.pending ?? "0", 10),
+      ruv: {
+        total: parseInt(ruvs[0]?.total ?? "0", 10),
+        approved: parseInt(ruvs[0]?.approved ?? "0", 10)
+      }
     };
   }
 

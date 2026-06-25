@@ -5,8 +5,10 @@ import { toMysqlDatetime } from "../utils/validators";
 
 export class MaintenanceService {
   async findAll() {
-    return query<Maintenance & { vehicle_plate: string }>(
-      `SELECT m.*, v.plate as vehicle_plate FROM maintenances m
+    return query<Maintenance & { vehicle_plate: string; photo_url?: string }>(
+      `SELECT m.*, v.plate as vehicle_plate,
+       (SELECT path FROM uploads WHERE entity_type = 'maintenance_defect' AND entity_id = m.id LIMIT 1) as photo_url
+       FROM maintenances m
        JOIN vehicles v ON v.id = m.vehicle_id
        ORDER BY m.scheduled_at DESC`
     );
