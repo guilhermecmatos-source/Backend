@@ -21,6 +21,17 @@ export class FuelController {
     return res.json(report);
   }
 
+  async monthly(req: Request, res: Response) {
+    try {
+      const plate = req.query.plate as string | undefined;
+      const data = await fuelService.getMonthly(plate);
+      return res.json(data);
+    } catch (err) {
+      console.error('[fuelController.monthly]', err);
+      return sendError(res, 500, 'Erro ao buscar dados mensais');
+    }
+  }
+
   async patterns(req: Request, res: Response) {
     const alerts = await fuelService.detectPatterns(req.params.vehicleId);
     return res.json(alerts);

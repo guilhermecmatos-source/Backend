@@ -8,6 +8,7 @@ router.use(authenticate);
 
 router.get("/", (req, res) => fuelController.list(req, res));
 router.get("/report", (req, res) => fuelController.report(req, res));
+router.get("/monthly", (req, res) => fuelController.monthly(req, res));
 router.get("/patterns/:vehicleId", (req, res) => fuelController.patterns(req, res));
 router.post("/", authorize("admin", "attendant"), (req, res) => fuelController.create(req, res));
 

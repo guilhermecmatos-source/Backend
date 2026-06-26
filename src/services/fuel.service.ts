@@ -67,6 +67,40 @@ export class FuelService {
     return { summary: summary[0], byVehicle };
   }
 
+  async getMonthly(plate?: string) {
+    const year = new Date().getFullYear();
+    const filter = plate ? "WHERE v.plate = $1" : "";
+    const params: unknown[] = plate ? [plate] : [];
+
+    const rows = await query<{ month: number; total_cost: string; total_liters: string; fills: string }>(
+      `SELECT
+         MONTH(f.filled_at) as month,
+         CAST(COALESCE(SUM(f.cost), 0) AS CHAR) as total_cost,
+         CAST(COALESCE(SUM(f.liters), 0) AS CHAR) as total_liters,
+         CAST(COUNT(*) AS CHAR) as fills
+       FROM fuel_records f
+       JOIN vehicles v ON v.id = f.vehicle_id
+       ${filter}
+       GROUP BY MONTH(f.filled_at)
+       ORDER BY MONTH(f.filled_at)`,
+      params
+    );
+
+    // Build 12-month array filled with zeros for months with no data
+    const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const result = monthNames.map((name, idx) => {
+      const found = rows.find(r => Number(r.month) === idx + 1);
+      return {
+        month: name,
+        cost: found ? Math.round(Number(found.total_cost) * 100) / 100 : 0,
+        liters: found ? Math.round(Number(found.total_liters) * 100) / 100 : 0,
+        fills: found ? Number(found.fills) : 0,
+      };
+    });
+
+    return result;
+  }
+
   async detectPatterns(vehicleId: string) {
     return predictiveService.detectSuspiciousFuel(vehicleId);
   }
