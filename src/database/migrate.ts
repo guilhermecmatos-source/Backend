@@ -328,6 +328,18 @@ async function migrate() {
     await ensureColumn(conn, "partners", "notes", "notes TEXT NULL");
     await ensureColumn(conn, "ruv_requests", "descricao", "descricao TEXT NULL");
     await ensureColumn(conn, "ruv_requests", "quantidade", "quantidade INT DEFAULT 1");
+    await ensureColumn(conn, "ruv_requests", "time_from", "time_from VARCHAR(10) NULL");
+    await ensureColumn(conn, "ruv_requests", "time_to", "time_to VARCHAR(10) NULL");
+    await ensureColumn(conn, "ruv_requests", "vehicle_type", "vehicle_type VARCHAR(100) NULL");
+    await ensureColumn(conn, "ruv_requests", "authorization_ref", "authorization_ref VARCHAR(255) NULL");
+    await ensureColumn(conn, "ruv_requests", "fuel_type", "fuel_type VARCHAR(100) NULL");
+    await ensureColumn(conn, "ruv_requests", "encarregado_signature", "encarregado_signature VARCHAR(255) NULL");
+    await ensureColumn(conn, "ruv_requests", "route_change", "route_change TINYINT(1) DEFAULT 0");
+    await ensureColumn(conn, "ruv_requests", "alt_destination", "alt_destination VARCHAR(255) NULL");
+    await ensureColumn(conn, "ruv_requests", "alt_objective", "alt_objective TEXT NULL");
+    await ensureColumn(conn, "ruv_requests", "alt_date", "alt_date VARCHAR(50) NULL");
+    await ensureColumn(conn, "ruv_requests", "alt_signature", "alt_signature VARCHAR(255) NULL");
+    await ensureColumn(conn, "ruv_requests", "auth_number", "auth_number VARCHAR(50) NULL");
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS uploads (
