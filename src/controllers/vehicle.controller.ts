@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { vehicleService } from "../services/vehicle.service";
+import { vehicleImageService } from "../services/vehicle-image.service";
 import { auditService } from "../services/audit.service";
 import { sendError } from "../utils/errors";
 
@@ -86,6 +87,37 @@ export class VehicleController {
       return res.status(204).send();
     } catch (e) {
       return sendError(res, 400, e instanceof Error ? e.message : "Erro ao excluir");
+    }
+  }
+
+  async generateImage(req: Request, res: Response) {
+    try {
+      const vehicle = await vehicleService.findById(req.params.id);
+      if (!vehicle) return sendError(res, 404, "Veículo não encontrado");
+
+      const imagePath = await vehicleImageService.generateImage(
+        vehicle.id,
+        vehicle.brand,
+        vehicle.model,
+        vehicle.year
+      );
+
+      if (!imagePath) {
+        return sendError(res, 500, "Não foi possível gerar a imagem do veículo.");
+      }
+
+      return res.json({ photo_url: imagePath });
+    } catch (e) {
+      return sendError(res, 500, e instanceof Error ? e.message : "Erro ao gerar imagem");
+    }
+  }
+
+  async generateMissingImages(_req: Request, res: Response) {
+    try {
+      const results = await vehicleImageService.generateMissingImages();
+      return res.json({ generated: results });
+    } catch (e) {
+      return sendError(res, 500, e instanceof Error ? e.message : "Erro ao gerar imagens");
     }
   }
 }

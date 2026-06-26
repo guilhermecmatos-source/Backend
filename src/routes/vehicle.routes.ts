@@ -13,6 +13,8 @@ router.get("/:id/fuel-history", (req, res) => vehicleController.fuelHistory(req,
 router.get("/:id/maintenance-history", (req, res) => vehicleController.maintenanceHistory(req, res));
 router.get("/:id", (req, res) => vehicleController.get(req, res));
 router.post("/", authorize(...managers), (req, res) => vehicleController.create(req, res));
+router.post("/:id/generate-image", (req, res) => vehicleController.generateImage(req, res));
+router.post("/generate-missing-images", authorize(...managers), (req, res) => vehicleController.generateMissingImages(req, res));
 router.put("/:id", authorize(...managers), (req, res) => vehicleController.update(req, res));
 router.delete("/:id", authorize("administrador", "admin"), (req, res) => vehicleController.delete(req, res));
 

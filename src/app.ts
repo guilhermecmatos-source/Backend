@@ -25,7 +25,6 @@ import chatRoutes from "./routes/chat.routes";
 import marketplaceRoutes from "./routes/marketplace.routes";
 import telemetryRoutes from "./routes/telemetry.routes";
 import aiRoutes from "./routes/ai.routes";
-import movimentacaoRoutes from "./routes/movimentacao.routes";
 import { pingDatabase } from "./database/connection";
 
 dotenv.config();
@@ -119,7 +118,6 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/marketplace", marketplaceRoutes);
 app.use("/api/telemetry", telemetryRoutes);
 app.use("/api/ai-chat", aiRoutes);
-app.use("/api/movimentacoes", movimentacaoRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
